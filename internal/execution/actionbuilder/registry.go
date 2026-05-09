@@ -172,8 +172,23 @@ func (r *Registry) BuildLendAction(ctx context.Context, req LendRequest) (execut
 			RPCURL:          req.RPCURL,
 			MTokenAddress:   req.PoolAddress,
 		})
+	case "compoundv3":
+		if strings.TrimSpace(req.OnBehalfOf) != "" {
+			return execution.Action{}, clierr.New(clierr.CodeUnsupported, "compound v3 does not support --on-behalf-of; the Comet contract operates on msg.sender (use --recipient to direct withdrawals to a different address)")
+		}
+		return planner.BuildCompoundV3LendAction(ctx, planner.CompoundV3LendRequest{
+			Verb:            req.Verb,
+			Chain:           req.Chain,
+			Asset:           req.Asset,
+			AmountBaseUnits: req.AmountBaseUnits,
+			Sender:          req.Sender,
+			Recipient:       req.Recipient,
+			Simulate:        req.Simulate,
+			RPCURL:          req.RPCURL,
+			CometAddress:    req.PoolAddress,
+		})
 	default:
-		return execution.Action{}, clierr.New(clierr.CodeUnsupported, "lend execution currently supports provider=aave|morpho|moonwell")
+		return execution.Action{}, clierr.New(clierr.CodeUnsupported, "lend execution currently supports provider=aave|morpho|moonwell|compoundv3")
 	}
 }
 
@@ -269,8 +284,42 @@ func (r *Registry) BuildYieldAction(ctx context.Context, req YieldRequest) (exec
 		action.Metadata["yield_action"] = yieldVerb
 		action.Metadata["yield_product"] = "moonwell_market"
 		return action, nil
+	case "compoundv3":
+		if strings.TrimSpace(req.OnBehalfOf) != "" {
+			return execution.Action{}, clierr.New(clierr.CodeUnsupported, "compound v3 does not support --on-behalf-of")
+		}
+		var lendVerb planner.AaveLendVerb
+		switch yieldVerb {
+		case string(YieldVerbDeposit):
+			lendVerb = planner.AaveVerbSupply
+		case string(YieldVerbWithdraw):
+			lendVerb = planner.AaveVerbWithdraw
+		default:
+			return execution.Action{}, clierr.New(clierr.CodeUsage, "yield action must be deposit or withdraw")
+		}
+		action, err := planner.BuildCompoundV3LendAction(ctx, planner.CompoundV3LendRequest{
+			Verb:            lendVerb,
+			Chain:           req.Chain,
+			Asset:           req.Asset,
+			AmountBaseUnits: req.AmountBaseUnits,
+			Sender:          req.Sender,
+			Recipient:       req.Recipient,
+			Simulate:        req.Simulate,
+			RPCURL:          req.RPCURL,
+			CometAddress:    req.PoolAddress,
+		})
+		if err != nil {
+			return execution.Action{}, err
+		}
+		action.IntentType = "yield_" + yieldVerb
+		if action.Metadata == nil {
+			action.Metadata = map[string]any{}
+		}
+		action.Metadata["yield_action"] = yieldVerb
+		action.Metadata["yield_product"] = "compoundv3_comet"
+		return action, nil
 	default:
-		return execution.Action{}, clierr.New(clierr.CodeUnsupported, "yield execution currently supports provider=aave|morpho|moonwell")
+		return execution.Action{}, clierr.New(clierr.CodeUnsupported, "yield execution currently supports provider=aave|morpho|moonwell|compoundv3")
 	}
 }
 

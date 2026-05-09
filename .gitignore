@@ -7,3 +7,11 @@
 .coverprofile
 .DS_Store
 TODO.md
+
+# Python (agent/)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/

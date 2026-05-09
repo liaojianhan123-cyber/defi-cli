@@ -13,6 +13,28 @@ func NormalizeLendingProvider(input string) string {
 		return "kamino"
 	case "moonwell", "moonwell-v2":
 		return "moonwell"
+	case "compound", "compoundv3", "compound-v3", "compound_v3":
+		return "compoundv3"
+	default:
+		return strings.ToLower(strings.TrimSpace(input))
+	}
+}
+
+// NormalizeYieldProvider canonicalizes supported yield provider aliases.
+func NormalizeYieldProvider(input string) string {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "aave", "aave-v2", "aave-v3":
+		return "aave"
+	case "morpho", "morpho-blue":
+		return "morpho"
+	case "kamino", "kamino-lend", "kamino-finance":
+		return "kamino"
+	case "moonwell", "moonwell-v2":
+		return "moonwell"
+	case "compound", "compoundv3", "compound-v3", "compound_v3":
+		return "compoundv3"
+	case "pendle", "pendle-finance", "pendle_finance":
+		return "pendle"
 	default:
 		return strings.ToLower(strings.TrimSpace(input))
 	}

@@ -33,6 +33,7 @@ import (
 	"github.com/ggonzalez94/defi-cli/internal/providers/aave"
 	"github.com/ggonzalez94/defi-cli/internal/providers/across"
 	"github.com/ggonzalez94/defi-cli/internal/providers/bungee"
+	"github.com/ggonzalez94/defi-cli/internal/providers/compoundv3"
 	"github.com/ggonzalez94/defi-cli/internal/providers/defillama"
 	"github.com/ggonzalez94/defi-cli/internal/providers/fibrous"
 	"github.com/ggonzalez94/defi-cli/internal/providers/jupiter"
@@ -41,6 +42,7 @@ import (
 	"github.com/ggonzalez94/defi-cli/internal/providers/moonwell"
 	"github.com/ggonzalez94/defi-cli/internal/providers/morpho"
 	"github.com/ggonzalez94/defi-cli/internal/providers/oneinch"
+	"github.com/ggonzalez94/defi-cli/internal/providers/pendle"
 	"github.com/ggonzalez94/defi-cli/internal/providers/taikoswap"
 	"github.com/ggonzalez94/defi-cli/internal/providers/tempo"
 	"github.com/ggonzalez94/defi-cli/internal/providers/uniswap"
@@ -156,21 +158,26 @@ func (s *runtimeState) newRootCommand() *cobra.Command {
 				morphoProvider := morpho.New(httpClient)
 				kaminoProvider := kamino.New(httpClient)
 				moonwellProvider := moonwell.New()
+				compoundV3Provider := compoundv3.New()
+				pendleProvider := pendle.New(httpClient)
 				jupiterProvider := jupiter.New(httpClient, settings.JupiterAPIKey)
 				tempoProvider := tempo.New()
 				taikoSwapProvider := taikoswap.New()
 				s.marketProvider = llama
 				s.lendingProviders = map[string]providers.LendingProvider{
-					"aave":   aaveProvider,
-					"morpho": morphoProvider,
-					"kamino":   kaminoProvider,
-					"moonwell": moonwellProvider,
+					"aave":       aaveProvider,
+					"morpho":     morphoProvider,
+					"kamino":     kaminoProvider,
+					"moonwell":   moonwellProvider,
+					"compoundv3": compoundV3Provider,
 				}
 				s.yieldProviders = map[string]providers.YieldProvider{
-					"aave":   aaveProvider,
-					"morpho": morphoProvider,
-					"kamino":   kaminoProvider,
-					"moonwell": moonwellProvider,
+					"aave":       aaveProvider,
+					"morpho":     morphoProvider,
+					"kamino":     kaminoProvider,
+					"moonwell":   moonwellProvider,
+					"compoundv3": compoundV3Provider,
+					"pendle":     pendleProvider,
 				}
 
 				s.bridgeProviders = map[string]providers.BridgeProvider{
@@ -196,6 +203,8 @@ func (s *runtimeState) newRootCommand() *cobra.Command {
 					morphoProvider.Info(),
 					kaminoProvider.Info(),
 					moonwellProvider.Info(),
+					compoundV3Provider.Info(),
+					pendleProvider.Info(),
 					s.bridgeProviders["across"].Info(),
 					s.bridgeProviders["lifi"].Info(),
 					s.bridgeProviders["bungee"].Info(),
@@ -761,7 +770,7 @@ func (s *runtimeState) newLendCommand() *cobra.Command {
 			})
 		},
 	}
-	marketsCmd.Flags().StringVar(&providerArg, "provider", "", "Lending provider (aave, morpho, kamino, moonwell)")
+	marketsCmd.Flags().StringVar(&providerArg, "provider", "", "Lending provider (aave, morpho, kamino, moonwell, compoundv3)")
 	marketsCmd.Flags().StringVar(&chainArg, "chain", "", "Chain identifier")
 	marketsCmd.Flags().StringVar(&assetArg, "asset", "", "Asset (symbol/address/CAIP-19)")
 	marketsCmd.Flags().IntVar(&marketsLimit, "limit", 20, "Maximum lending markets to return")
@@ -805,7 +814,7 @@ func (s *runtimeState) newLendCommand() *cobra.Command {
 			})
 		},
 	}
-	ratesCmd.Flags().StringVar(&ratesProvider, "provider", "", "Lending provider (aave, morpho, kamino, moonwell)")
+	ratesCmd.Flags().StringVar(&ratesProvider, "provider", "", "Lending provider (aave, morpho, kamino, moonwell, compoundv3)")
 	ratesCmd.Flags().StringVar(&ratesChain, "chain", "", "Chain identifier")
 	ratesCmd.Flags().StringVar(&ratesAsset, "asset", "", "Asset (symbol/address/CAIP-19)")
 	ratesCmd.Flags().IntVar(&ratesLimit, "limit", 20, "Maximum lending rates to return")
@@ -883,7 +892,7 @@ func (s *runtimeState) newLendCommand() *cobra.Command {
 			})
 		},
 	}
-	positionsCmd.Flags().StringVar(&positionsProvider, "provider", "", "Lending provider (aave, morpho, moonwell)")
+	positionsCmd.Flags().StringVar(&positionsProvider, "provider", "", "Lending provider (aave, morpho, moonwell, compoundv3)")
 	positionsCmd.Flags().StringVar(&positionsChain, "chain", "", "Chain identifier")
 	positionsCmd.Flags().StringVar(&positionsAddress, "address", "", "Position owner address")
 	positionsCmd.Flags().StringVar(&positionsAsset, "asset", "", "Optional asset filter (symbol/address/CAIP-19)")
@@ -1721,7 +1730,7 @@ func (s *runtimeState) newYieldCommand() *cobra.Command {
 	opportunitiesCmd.Flags().IntVar(&opportunitiesLimit, "limit", 20, "Maximum opportunities to return")
 	opportunitiesCmd.Flags().Float64Var(&opportunitiesMinTVL, "min-tvl-usd", 0, "Minimum TVL in USD")
 	opportunitiesCmd.Flags().Float64Var(&opportunitiesMinAPY, "min-apy", 0, "Minimum total APY percent")
-	opportunitiesCmd.Flags().StringVar(&opportunitiesProvidersArg, "providers", "", "Filter by provider names (aave,morpho,kamino,moonwell)")
+	opportunitiesCmd.Flags().StringVar(&opportunitiesProvidersArg, "providers", "", "Filter by provider names (aave,morpho,kamino,moonwell,compoundv3,pendle)")
 	opportunitiesCmd.Flags().StringVar(&opportunitiesSortArg, "sort", "apy_total", "Sort key (apy_total|tvl_usd|liquidity_usd)")
 	opportunitiesCmd.Flags().BoolVar(&opportunitiesIncludeIncomplete, "include-incomplete", false, "Include opportunities missing APY/TVL")
 	opportunitiesCmd.Flags().StringVar(&opportunitiesRPCURL, "rpc-url", "", "Optional RPC URL override for on-chain providers")
@@ -1831,7 +1840,7 @@ func (s *runtimeState) newYieldCommand() *cobra.Command {
 	positionsCmd.Flags().StringVar(&positionsChainArg, "chain", "", "Chain identifier")
 	positionsCmd.Flags().StringVar(&positionsAddressArg, "address", "", "Position owner address")
 	positionsCmd.Flags().StringVar(&positionsAssetArg, "asset", "", "Optional asset filter (symbol/address/CAIP-19)")
-	positionsCmd.Flags().StringVar(&positionsProvidersArg, "providers", "", "Filter by provider names (aave,morpho,kamino,moonwell)")
+	positionsCmd.Flags().StringVar(&positionsProvidersArg, "providers", "", "Filter by provider names (aave,morpho,kamino,moonwell,compoundv3,pendle)")
 	positionsCmd.Flags().IntVar(&positionsLimit, "limit", 20, "Maximum positions to return")
 	positionsCmd.Flags().StringVar(&positionsRPCURL, "rpc-url", "", "Optional RPC URL override used by providers that need on-chain valuation")
 	_ = positionsCmd.MarkFlagRequired("chain")
@@ -2221,7 +2230,7 @@ func (s *runtimeState) selectYieldProviders(filter []string, chain id.Chain) ([]
 	selected := make([]string, 0, len(filter))
 	seen := map[string]struct{}{}
 	for _, item := range filter {
-		name := strings.ToLower(strings.TrimSpace(item))
+		name := providers.NormalizeYieldProvider(item)
 		if _, ok := s.yieldProviders[name]; !ok {
 			return nil, clierr.New(clierr.CodeUsage, fmt.Sprintf("unsupported yield provider: %s", item))
 		}
@@ -2243,6 +2252,17 @@ func yieldProviderSupportsChain(name string, chain id.Chain) bool {
 		return chain.IsEVM()
 	case "moonwell":
 		return chain.IsEVM() && (chain.EVMChainID == 8453 || chain.EVMChainID == 10)
+	case "compoundv3":
+		if !chain.IsEVM() {
+			return false
+		}
+		_, ok := registry.CompoundV3Markets(chain.EVMChainID)
+		return ok
+	case "pendle":
+		if !chain.IsEVM() {
+			return false
+		}
+		return pendle.SupportedChainIDs()[chain.EVMChainID]
 	default:
 		return true
 	}

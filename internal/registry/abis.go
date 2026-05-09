@@ -89,6 +89,28 @@ const (
 		{"name":"aggregate3","type":"function","stateMutability":"payable","inputs":[{"name":"calls","type":"tuple[]","components":[{"name":"target","type":"address"},{"name":"allowFailure","type":"bool"},{"name":"callData","type":"bytes"}]}],"outputs":[{"name":"returnData","type":"tuple[]","components":[{"name":"success","type":"bool"},{"name":"returnData","type":"bytes"}]}]}
 	]`
 
+	// CompoundV3CometABI: read-only fragment of the Comet (Compound V3) interface.
+	// Reference: https://github.com/compound-finance/comet/blob/main/contracts/CometInterface.sol
+	CompoundV3CometABI = `[
+		{"name":"baseToken","type":"function","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"address"}]},
+		{"name":"baseTokenPriceFeed","type":"function","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"address"}]},
+		{"name":"getUtilization","type":"function","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+		{"name":"getSupplyRate","type":"function","stateMutability":"view","inputs":[{"name":"utilization","type":"uint256"}],"outputs":[{"name":"","type":"uint64"}]},
+		{"name":"getBorrowRate","type":"function","stateMutability":"view","inputs":[{"name":"utilization","type":"uint256"}],"outputs":[{"name":"","type":"uint64"}]},
+		{"name":"totalSupply","type":"function","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+		{"name":"totalBorrow","type":"function","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+		{"name":"balanceOf","type":"function","stateMutability":"view","inputs":[{"name":"account","type":"address"}],"outputs":[{"name":"","type":"uint256"}]},
+		{"name":"borrowBalanceOf","type":"function","stateMutability":"view","inputs":[{"name":"account","type":"address"}],"outputs":[{"name":"","type":"uint256"}]},
+		{"name":"numAssets","type":"function","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint8"}]},
+		{"name":"getAssetInfo","type":"function","stateMutability":"view","inputs":[{"name":"i","type":"uint8"}],"outputs":[{"name":"info","type":"tuple","components":[{"name":"offset","type":"uint8"},{"name":"asset","type":"address"},{"name":"priceFeed","type":"address"},{"name":"scale","type":"uint64"},{"name":"borrowCollateralFactor","type":"uint64"},{"name":"liquidateCollateralFactor","type":"uint64"},{"name":"liquidationFactor","type":"uint64"},{"name":"supplyCap","type":"uint128"}]}]},
+		{"name":"userCollateral","type":"function","stateMutability":"view","inputs":[{"name":"user","type":"address"},{"name":"asset","type":"address"}],"outputs":[{"name":"balance","type":"uint128"},{"name":"_reserved","type":"uint128"}]},
+		{"name":"getPrice","type":"function","stateMutability":"view","inputs":[{"name":"priceFeed","type":"address"}],"outputs":[{"name":"","type":"uint256"}]},
+		{"name":"supply","type":"function","stateMutability":"nonpayable","inputs":[{"name":"asset","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[]},
+		{"name":"supplyTo","type":"function","stateMutability":"nonpayable","inputs":[{"name":"dst","type":"address"},{"name":"asset","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[]},
+		{"name":"withdraw","type":"function","stateMutability":"nonpayable","inputs":[{"name":"asset","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[]},
+		{"name":"withdrawTo","type":"function","stateMutability":"nonpayable","inputs":[{"name":"to","type":"address"},{"name":"asset","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[]}
+	]`
+
 	MorphoBlueABI = `[
 		{"name":"supply","type":"function","stateMutability":"nonpayable","inputs":[{"name":"marketParams","type":"tuple","components":[{"name":"loanToken","type":"address"},{"name":"collateralToken","type":"address"},{"name":"oracle","type":"address"},{"name":"irm","type":"address"},{"name":"lltv","type":"uint256"}]},{"name":"assets","type":"uint256"},{"name":"shares","type":"uint256"},{"name":"onBehalf","type":"address"},{"name":"data","type":"bytes"}],"outputs":[{"name":"assetsSupplied","type":"uint256"},{"name":"sharesSupplied","type":"uint256"}]},
 		{"name":"withdraw","type":"function","stateMutability":"nonpayable","inputs":[{"name":"marketParams","type":"tuple","components":[{"name":"loanToken","type":"address"},{"name":"collateralToken","type":"address"},{"name":"oracle","type":"address"},{"name":"irm","type":"address"},{"name":"lltv","type":"uint256"}]},{"name":"assets","type":"uint256"},{"name":"shares","type":"uint256"},{"name":"onBehalf","type":"address"},{"name":"receiver","type":"address"}],"outputs":[{"name":"assetsWithdrawn","type":"uint256"},{"name":"sharesWithdrawn","type":"uint256"}]},

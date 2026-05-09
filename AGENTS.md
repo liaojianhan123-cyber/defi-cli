@@ -34,7 +34,7 @@ cmd/
 internal/
   app/runner.go                   # command wiring, provider routing, cache flow
   providers/                      # external adapters
-    aave/ morpho/ moonwell/       # lending + yield (read + execution)
+    aave/ morpho/ moonwell/ pendle/ # lending + yield (read + execution; pendle is yield-only read)
     defillama/                    # market/yield normalization + fallback + bridge analytics
     across/ lifi/                 # bridge quotes + lifi execution planning
     oneinch/ uniswap/ taikoswap/ tempo/ # swap quotes + execution planning providers
@@ -50,6 +50,15 @@ internal/
   schema/                         # machine-readable command schema
   policy/                         # command allowlist
   httpx/                          # shared HTTP client/retry behavior
+
+agent/                            # AI DeFi Agent (Python, Claude API)
+  defi_agent.py                   # main loop: Claude tool-use → defi-cli
+  tools.py                        # tool schemas + subprocess dispatch
+  guardrails.py                   # protocol allowlist, max-USD cap, APY/TVL warnings
+  config.py                       # env-var configuration
+  test_tools.py                   # unit tests (no network, no API key)
+  test_guardrails.py              # unit tests
+  requirements.txt                # anthropic SDK only
 
 .github/workflows/ci.yml          # CI (test/vet/build)
 .github/workflows/nightly-execution-smoke.yml # nightly execution planning drift checks
@@ -67,10 +76,14 @@ README.md                         # user-facing usage + caveats
 
 - Error output always returns a full envelope, even with `--results-only` or `--select`.
 - Config precedence is `flags > env > config file > defaults`.
-- `yield --providers` expects provider names (`aave,morpho,kamino,moonwell`), not protocol categories.
-- Lending routes by `--provider` use direct protocol adapters (`aave`, `morpho`, `kamino`, `moonwell`).
-- `lend positions` currently supports `--provider aave|morpho|moonwell`; `kamino` does not expose positions yet.
-- `yield positions` currently supports `aave|morpho|moonwell`; `kamino` does not expose positions yet.
+- `yield --providers` expects provider names (`aave,morpho,kamino,moonwell,compoundv3,pendle`), not protocol categories.
+- Lending routes by `--provider` use direct protocol adapters (`aave`, `morpho`, `kamino`, `moonwell`, `compoundv3`).
+- `lend positions` currently supports `--provider aave|morpho|moonwell|compoundv3`; `kamino` does not expose positions yet.
+- `yield positions` currently supports `aave|morpho|moonwell|compoundv3|pendle`; `kamino` does not expose positions yet.
+- Pendle (`pendle`) is a yield-tokenisation protocol; it is yield-only (no lending markets or execution). Each active Pendle market emits two `yield opportunities`: `fixed` (PT — principal token, locked to maturity, `withdrawal_terms: fixed-maturity`) and `lp` (AMM pool liquidity, `withdrawal_terms: instant`). `yield positions` returns non-zero PT, YT, and LP balances. Supported chains: Ethereum (1), Arbitrum (42161), Base (8453), Optimism (10), BNB (56), Mantle (5000). No API key required. Aliases: `pendle-finance`, `pendle_finance`. Source: `internal/providers/pendle/client.go`.
+- AI Agent (`agent/`) is a Python wrapper around defi-cli, designed for autonomous DeFi workflows: Claude consumes the same `--results-only` JSON envelopes the CLI emits and constructs follow-up `plan`/`submit` calls. The agent never reads private keys directly — it spawns the `defi` binary which inherits `DEFI_PRIVATE_KEY{,_FILE}` from env. The Python loop hard-gates the two execution submit tools (`yield_deposit_submit`, `lend_supply_submit`) behind interactive terminal confirmation (`tools.EXECUTION_SUBMIT_TOOLS` set); LLM-side prompt rules are defence-in-depth, not the primary safety boundary. To add a new execution verb to the agent: declare its plan + submit schemas in `agent/tools.py`, map them in `_dispatch`, append the submit tool name to `EXECUTION_SUBMIT_TOOLS`, and update tests in `agent/test_tools.py`. Run agent tests with `python agent/test_tools.py` and `python agent/test_guardrails.py` (no network or API key required).
+- Compound V3 (`compoundv3`) reads are on-chain via Multicall3; each Comet has a single base asset (the only borrowable/lendable asset). Supported chains: Ethereum, Optimism, Polygon, Base, Arbitrum, Scroll. Comet deployments live in `internal/registry/contracts.go` (`CompoundV3Markets`); ABI fragment in `internal/registry/abis.go` (`CompoundV3CometABI`). Adding a new chain only requires extending the registry map.
+- Compound V3 execution lives in `internal/execution/planner/compoundv3.go`. The four `lend` verbs map onto Comet's two write methods: `supply`/`repay` → `Comet.supply{,To}(asset, amount)`, `withdraw`/`borrow` → `Comet.withdraw{,To}(asset, amount)`. Comet auto-applies a base-asset supply against any outstanding debt before increasing supply, and auto-opens a borrow when a base-asset withdraw exceeds the user's supply balance — that is what `repay` and `borrow` exploit. Auto-resolution scans the chain's `CompoundV3Markets` for a Comet whose `baseToken()` matches the user-supplied asset; collateral-asset operations (or non-base assets) require `--pool-address` with the explicit Comet. `borrow`/`repay` reject non-base assets up front. `--on-behalf-of` is rejected (Comet writes operate on `msg.sender`); `--recipient` routes through `supplyTo`/`withdrawTo`.
 - `lend positions --type all` intentionally returns non-overlapping intents (`supply`, `borrow`, `collateral`) for automation-friendly filtering.
 - Most commands do not require provider API keys.
 - Key-gated routes: `swap quote --provider 1inch` (`DEFI_1INCH_API_KEY`), `swap quote --provider uniswap` (`DEFI_UNISWAP_API_KEY`), `chains assets`, and `bridge list` / `bridge details` via DefiLlama (`DEFI_DEFILLAMA_API_KEY`).
@@ -160,6 +173,7 @@ README.md                         # user-facing usage + caveats
 - `go test ./...` passes
 - `go test -race ./...` passes
 - `go vet ./...` passes
+- when changing `agent/`: `python agent/test_tools.py` and `python agent/test_guardrails.py` pass
 - smoke at least one command on each touched provider path
 - README updated for user-visible changes
 - CHANGELOG updated for user-visible changes

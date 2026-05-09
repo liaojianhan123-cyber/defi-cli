@@ -10,8 +10,8 @@ Built for AI agents and scripts. Stable JSON output, canonical identifiers (CAIP
 
 ## Features
 
-- **Lending** — query markets/rates from Aave/Morpho/Kamino/Moonwell, account positions from Aave/Morpho/Moonwell, and execute loan actions (`lend supply|withdraw|borrow|repay`).
-- **Yield** — compare opportunities, query positions, fetch historical series, and execute deposit/withdraw flows (Aave, Morpho, Moonwell).
+- **Lending** — query markets/rates from Aave/Morpho/Kamino/Moonwell/Compound V3, account positions from Aave/Morpho/Moonwell/Compound V3, and execute loan actions (`lend supply|withdraw|borrow|repay`) on Aave/Morpho/Moonwell/Compound V3.
+- **Yield** — compare opportunities, query positions, fetch historical series, and execute deposit/withdraw flows (Aave, Morpho, Moonwell, Compound V3).
 - **Bridging** — get cross-chain quotes (Across, LiFi, Bungee), bridge analytics, and execute bridge plans (Across, LiFi).
 - **Swapping** — get swap quotes (1inch, Uniswap, Jupiter, Tempo, TaikoSwap, Fibrous, Bungee) and execute swap plans (Tempo with native type 0x76 transactions and batched calls, TaikoSwap).
 - **Approvals, transfers & rewards** — ERC-20 approvals/transfers and Aave rewards claim/compound flows.
@@ -106,6 +106,8 @@ defi assets resolve --chain base --symbol USDC --results-only
 defi lend markets --provider aave --chain 1 --asset USDC --results-only
 defi lend positions --provider aave --chain 1 --address 0xYourEOA --type all --results-only
 defi yield opportunities --chain 1 --asset USDC --providers aave,morpho --limit 10 --results-only
+defi yield opportunities --chain 1 --providers pendle --limit 10 --results-only            # Pendle PT+LP markets
+defi yield positions --chain 1 --providers pendle --address 0xYourEOA --results-only       # Pendle PT/YT/LP holdings
 defi yield history --chain 1 --asset USDC --providers aave --metrics apy_total --interval day --window 7d --limit 1 --results-only
 defi bridge quote --provider across --from 1 --to 8453 --asset USDC --amount 1000000 --results-only
 defi swap quote --provider tempo --chain tempo --from-asset pathUSD --to-asset USDC.e --amount 1000000 --results-only
@@ -142,7 +144,7 @@ defi actions estimate --action-id <action_id> --results-only
 
 All `plan` commands support `--rpc-url` to override chain default RPCs.
 `plan` and `submit` accept `--input-json` / `--input-file` for structured input; explicit flags override JSON values.
-`--providers` flags accept provider names from `defi providers list` (e.g. `aave,morpho,kamino,moonwell`).
+`--providers` flags accept provider names from `defi providers list` (e.g. `aave,morpho,kamino,moonwell,pendle`).
 
 ### More quote examples
 
@@ -275,6 +277,8 @@ providers:
 - `wallet balance` currently supports EVM chains only; Solana is not yet supported.
 - `wallet balance` uses `eth_getBalance` for native tokens and ERC-20 `balanceOf` for tokens; it does not query pending/unconfirmed balances.
 - Morpho can surface extreme APY values on very small markets; use `--min-tvl-usd` when ranking.
+- Compound V3 (Comet): each Comet market exposes one base asset (the only borrowable/lendable asset) plus collateral-only assets. `lend markets`/`lend rates`/`yield opportunities` return one row per Comet (keyed by base asset). `lend positions --type all` returns the supply and borrow positions on the base asset plus per-collateral rows; `yield positions` returns base-asset supply only. Supported chains: Ethereum, Optimism, Polygon, Base, Arbitrum, Scroll. Execution (`lend supply|withdraw|borrow|repay plan|submit|status`, `yield deposit|withdraw plan|submit|status`) is supported and auto-resolves the target Comet by base asset; pass `--pool-address` with the Comet address to operate on a collateral asset (e.g. supplying WETH as collateral on cUSDCv3). `borrow`/`repay` only accept the Comet base asset; `--on-behalf-of` is rejected (Comet operates on `msg.sender`); use `--recipient` to redirect supply/withdraw via `supplyTo`/`withdrawTo`.
+- Pendle (`pendle`) is yield-only (no lending or execution). Each active Pendle market surfaces two `yield opportunities`: `fixed` (PT — principal token, fixed APY locked to maturity, `withdrawal_terms: fixed-maturity`) and `lp` (AMM pool, `withdrawal_terms: instant`). `yield positions` returns non-zero PT, YT, and LP token balances with USD valuation. Supported chains: Ethereum, Arbitrum, Base, Optimism, BNB, Mantle. No API key required. Pendle APY values source from Pendle's public API v2; implied APY can shift meaningfully intra-day on low-liquidity markets.
 - `yield opportunities` returns `apy_total`, `tvl_usd`, `liquidity_usd`, and `backing_assets` (objective metrics only).
 - `yield history --metrics` supports `apy_total` and `tvl_usd`; Aave currently supports `apy_total` only. Use `--window` for Aave history.
 - `lend positions --type all` returns disjoint rows: `supply`, `collateral`, and `borrow`.
