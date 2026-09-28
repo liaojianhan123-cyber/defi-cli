@@ -1,0 +1,73 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: defi-agent-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/defi_agent?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: defi-agent
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  ai:
+    openai:
+      # Spring AI's OpenAiChatAutoConfiguration throws at bean-creation time on a truly
+      # blank key (Assert.hasText), which would crash the whole context on startup even
+      # though nothing ever calls the LLM. So we hand it a non-blank placeholder here —
+      # this bean is constructed but never invoked when OPENAI_API_KEY is unset, because
+      # ChatController routes to the rule-based AgentService instead (it reads the raw
+      # OPENAI_API_KEY env var directly, not this placeholder-filled property).
+      api-key: ${OPENAI_API_KEY:sk-not-configured-rule-based-fallback-active}
+      # Spring AI's OpenAI client just needs base-url + api-key + model to point at any
+      # OpenAI-compatible provider — no code changes. Default here is DeepSeek's endpoint
+      # (mainland-accessible, no VPN, cheap, supports function/tool calling). Override
+      # OPENAI_BASE_URL/OPENAI_MODEL env vars to switch back to real OpenAI or another
+      # OpenAI-compatible provider (Moonshot Kimi, Qwen/DashScope compatible-mode, GLM...).
+      base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:deepseek-chat}
+
+app:
+  execution:
+    topic: defi-execute
+    # Simulated broadcast latency (ms) so the async flow is observable in demos.
+    simulated-latency-ms: 1200
+
+# Path to the defi-cli Go binary this service shells out to for real on-chain
+# queries and plan/estimate/show commands. It never invokes `submit` (no signing
+# happens in this process). Build it with: cd defi-cli && go build -o defi ./cmd/defi
+defi:
+  cli:
+    path: ${DEFI_CLI_PATH:defi}
+    timeout: 10s
+
+# Java port of defi-cli's Python agent guardrails (agent/guardrails.py / agent/config.py).
+agent:
+  max-single-tx-usd: ${AGENT_MAX_SINGLE_TX_USD:10000}
+  allowed-protocols: ${AGENT_ALLOWED_PROTOCOLS:}
+  high-apy-warning-threshold: 50
+  min-tvl-for-large-amount: 1000000
+  large-amount-usd: 1000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

@@ -15,3 +15,13 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# Java agent service
+defi-agent-service/target/
+.idea/
+resume/
+未命名/
+.env
+.env.*
+*.pem
+*.key

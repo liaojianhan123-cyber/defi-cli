@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DeFi AI Agent</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #0a0713;
+    --bg-panel: rgba(255, 255, 255, 0.035);
+    --bg-panel-strong: rgba(255, 255, 255, 0.06);
+    --border-soft: rgba(255, 255, 255, 0.08);
+    --border-glow: rgba(153, 69, 255, 0.45);
+    --purple: #9945ff;
+    --pink: #dc1fff;
+    --green: #14f195;
+    --amber: #ffb020;
+    --red: #ff4d6d;
+    --text-primary: #f3f0ff;
+    --text-secondary: #a397c4;
+    --text-faint: #6f6690;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 9px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow: hidden;
+  }
+
+  body {
+    position: relative;
+  }
+
+  /* Solana-style soft glow blobs */
+  .bg-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .bg-glow::before, .bg-glow::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.35;
+  }
+  .bg-glow::before {
+    width: 620px;
+    height: 620px;
+    top: -220px;
+    left: -160px;
+    background: radial-gradient(circle at 30% 30%, var(--purple), transparent 70%);
+  }
+  .bg-glow::after {
+    width: 560px;
+    height: 560px;
+    bottom: -200px;
+    right: -140px;
+    background: radial-gradient(circle at 70% 70%, var(--pink), transparent 70%);
+    opacity: 0.25;
+  }
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    height: 100vh;
+    max-width: 880px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 20px 18px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-soft);
+    gap: 12px;
+  }
+  .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .wallet-btn {
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-glow);
+    border-radius: 100px;
+    padding: 6px 12px;
+    cursor: pointer;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .wallet-btn:hover { background: var(--bg-panel-strong); }
+  .mini-btn.wallet {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(153,69,255,0.85), rgba(220,31,255,0.7));
+    border-color: transparent;
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 22px rgba(153, 69, 255, 0.55);
+    flex-shrink: 0;
+  }
+  .brand-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+    background: linear-gradient(90deg, #fff, #d9c8ff 55%, var(--pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .brand-sub {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 1px;
+  }
+
+  .mode-pill {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    border-radius: 100px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .mode-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  .chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 14px 0 4px;
+  }
+  .chip {
+    font-size: 12.5px;
+    padding: 7px 13px;
+    border-radius: 100px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .chip:hover {
+    color: var(--text-primary);
+    border-color: var(--border-glow);
+    background: var(--bg-panel-strong);
+    transform: translateY(-1px);
+  }
+
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 4px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+  .chat::-webkit-scrollbar { width: 7px; }
+  .chat::-webkit-scrollbar-thumb {
+    background: rgba(153, 69, 255, 0.35);
+    border-radius: 10px;
+  }
+  .chat::-webkit-scrollbar-track { background: transparent; }
+
+  .row { display: flex; gap: 10px; max-width: 100%; }
+  .row.user { justify-content: flex-end; }
+  .row.agent { justify-content: flex-start; }
+
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    margin-top: 2px;
+  }
+  .avatar.agent-av {
+    background: linear-gradient(135deg, rgba(153,69,255,0.35), rgba(220,31,255,0.25));
+    border: 1px solid var(--border-glow);
+  }
+  .avatar.user-av {
+    background: var(--bg-panel-strong);
+    border: 1px solid var(--border-soft);
+  }
+
+  .bubble {
+    max-width: 78%;
+    padding: 13px 16px;
+    border-radius: var(--radius-md);
+    font-size: 14.5px;
+    line-height: 1.65;
+    word-wrap: break-word;
+  }
+  .row.user .bubble {
+    background: linear-gradient(135deg, rgba(153,69,255,0.9), rgba(220,31,255,0.75));
+    color: #fff;
+    border-radius: var(--radius-md) 6px var(--radius-md) var(--radius-md);
+  }
+  .row.agent .bubble {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    color: var(--text-primary);
+    border-radius: 6px var(--radius-md) var(--radius-md) var(--radius-md);
+    backdrop-filter: blur(6px);
+  }
+  .bubble.streaming::after {
+    content: "▍";
+    color: var(--pink);
+    animation: pulse 0.9s infinite;
+    margin-left: 2px;
+  }
+
+  .bubble :is(p) { margin: 0 0 8px; }
+  .bubble :last-child { margin-bottom: 0; }
+  .bubble strong { color: #fff; }
+  .bubble code {
+    background: rgba(255,255,255,0.08);
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    color: #e3d8ff;
+  }
+  .bubble table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 13px;
+  }
+  .bubble th, .bubble td {
+    border: 1px solid var(--border-soft);
+    padding: 6px 9px;
+    text-align: left;
+  }
+  .bubble th {
+    background: rgba(153,69,255,0.14);
+    color: #e3d8ff;
+    font-weight: 600;
+  }
+  .bubble ul, .bubble ol { padding-left: 20px; margin: 6px 0; }
+  .bubble h1, .bubble h2, .bubble h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    margin: 4px 0 8px;
+    color: #fff;
+  }
+  .bubble hr { border: none; border-top: 1px solid var(--border-soft); margin: 10px 0; }
+
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 4px 2px;
+  }
+  .typing span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--purple);
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .typing span:nth-child(2) { animation-delay: .15s; }
+  .typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes pulse { 0%, 80%, 100% { opacity: .25; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1.1); } }
+
+  .action-card {
+    margin-top: 10px;
+    padding: 11px 13px;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-soft);
+    font-size: 12.5px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .action-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .action-id {
+    font-family: 'Space Grotesk', monospace;
+    color: var(--text-secondary);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .badge.PLANNED { background: rgba(148,163,184,0.15); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.3); }
+  .badge.QUEUED { background: rgba(255,176,32,0.15); color: var(--amber); border: 1px solid rgba(255,176,32,0.35); }
+  .badge.EXECUTING { background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.35); animation: glow 1.4s infinite; }
+  .badge.CONFIRMED { background: rgba(20,241,149,0.15); color: var(--green); border: 1px solid rgba(20,241,149,0.4); }
+  .badge.FAILED { background: rgba(255,77,109,0.15); color: var(--red); border: 1px solid rgba(255,77,109,0.4); }
+  .badge.CANCELLED { background: rgba(148,163,184,0.1); color: var(--text-faint); border: 1px solid var(--border-soft); }
+  @keyframes glow { 0%,100% { box-shadow: 0 0 0px rgba(56,189,248,0); } 50% { box-shadow: 0 0 10px rgba(56,189,248,0.5); } }
+
+  .action-buttons { display: flex; gap: 8px; }
+  .mini-btn {
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 7px;
+    background: var(--bg-panel-strong);
+    border: 1px solid var(--border-soft);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .mini-btn:hover { color: #fff; border-color: var(--border-glow); }
+  .detail-json {
+    display: none;
+    background: #0a0710;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 11.5px;
+    color: #b6a9e0;
+    white-space: pre-wrap;
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--border-soft);
+  }
+
+  .composer {
+    padding-top: 14px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .input-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    border-radius: 100px;
+    padding: 6px 6px 6px 18px;
+    transition: border-color .15s;
+  }
+  .input-bar:focus-within {
+    border-color: var(--border-glow);
+    box-shadow: 0 0 0 3px rgba(153, 69, 255, 0.12);
+  }
+  .input-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 14.5px;
+    font-family: inherit;
+    padding: 10px 0;
+  }
+  .input-bar input::placeholder { color: var(--text-faint); }
+  .send-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(153, 69, 255, 0.45);
+    transition: transform .12s;
+  }
+  .send-btn:hover { transform: scale(1.06); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+  .send-btn svg { width: 16px; height: 16px; }
+
+  .footnote {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-faint);
+    padding-top: 10px;
+    letter-spacing: 0.01em;
+  }
+  .footnote .reset-link {
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: rgba(163, 151, 196, 0.3);
+  }
+  .footnote .reset-link:hover { color: #fff; }
+</style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark">⚡</div>
+        <div>
+          <div class="brand-title">DeFi AI Agent</div>
+          <div class="brand-sub">自然语言 → 计划 → 钱包确认</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="wallet-btn" id="walletBtn" type="button">连接 MetaMask</button>
+        <div class="mode-pill"><span class="dot"></span>Tool-Calling Online</div>
+      </div>
+    </header>
+
+    <div class="chips" id="chips">
+      <div class="chip" data-msg="查一下 aave 在以太坊上 USDC 的收益率">📊 查 Aave USDC 收益率</div>
+      <div class="chip" data-msg="什么是无常损失">💡 什么是无常损失</div>
+      <div class="chip" data-msg="帮我把 1000 USDC 存到以太坊上收益最高的池子">🏦 存 1000 USDC 到最高收益池</div>
+      <div class="chip" data-wallet="1">🦊 用钱包确认执行</div>
+      <div class="chip" data-msg="状态">🔍 查询状态</div>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div class="composer">
+      <div class="input-bar">
+        <input id="input" type="text" placeholder="用自然语言描述你想做的事，例如：把 1000 USDC 存到收益最高的池子…" autocomplete="off" />
+        <button class="send-btn" id="sendBtn" title="发送">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 12L20 4L13 20L11 13L4 12Z" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <div class="footnote">
+        真上链：连接钱包后点「用钱包确认执行」，MetaMask 弹窗由你签字。聊天里回复「确认」仍是 paper 模拟。 · <span class="reset-link" id="resetBtn">开始新会话</span>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+<script>
+(function () {
+  const API_CHAT = '/api/chat';
+  const API_ACTION = '/api/actions/';
+  const SESSION_KEY = 'defi-agent-session-id';
+  const HISTORY_KEY_PREFIX = 'defi-agent-history:';
+
+  const chatEl = document.getElementById('chat');
+  const inputEl = document.getElementById('input');
+  const sendBtn = document.getElementById('sendBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const chipsEl = document.getElementById('chips');
+
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  let sessionId = localStorage.getItem(SESSION_KEY);
+  if (!sessionId) {
+    sessionId = uuid();
+    localStorage.setItem(SESSION_KEY, sessionId);
+  }
+
+  function historyKey() { return HISTORY_KEY_PREFIX + sessionId; }
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(historyKey());
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function saveHistory(history) {
+    try { localStorage.setItem(historyKey(), JSON.stringify(history)); } catch (e) {}
+  }
+
+  let history = loadHistory();
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderMarkdown(text) {
+    try {
+      return marked.parse(text, { mangle: false, headerIds: false });
+    } catch (e) {
+      return `<p>${escapeHtml(text)}</p>`;
+    }
+  }
+
+  function badgeHtml(status) {
+    if (!status) return '';
+    return `<span class="badge ${status}">${status}</span>`;
+  }
+
+  function actionCardHtml(actionId, status) {
+    if (!actionId) return '';
+    const shortId = actionId.length > 24 ? actionId.slice(0, 10) + '…' + actionId.slice(-8) : actionId;
+    return `
+      <div class="action-card" data-action-id="${escapeHtml(actionId)}">
+        <div class="action-row">
+          <span class="action-id" title="${escapeHtml(actionId)}">Action · ${escapeHtml(shortId)}</span>
+          ${badgeHtml(status)}
+        </div>
+        <div class="action-buttons">
+          <button class="mini-btn copy-btn">复制 ID</button>
+          <button class="mini-btn detail-btn">查看详情</button>
+          <button class="mini-btn wallet wallet-exec-btn">用钱包执行</button>
+        </div>
+        <div class="detail-json"></div>
+      </div>
+    `;
+  }
+
+  function appendRow(role, opts) {
+    const row = document.createElement('div');
+    row.className = 'row ' + role;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar ' + (role === 'user' ? 'user-av' : 'agent-av');
+    avatar.textContent = role === 'user' ? '🧑' : '⚡';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble' + (opts.error ? ' error' : '');
+
+    if (opts.typing) {
+      bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    } else if (role === 'user') {
+      bubble.innerHTML = `<p>${escapeHtml(opts.text)}</p>`;
+    } else {
+      bubble.innerHTML = renderMarkdown(opts.text || '') + actionCardHtml(opts.actionId, opts.status);
+    }
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    chatEl.appendChild(row);
+    chatEl.scrollTop = chatEl.scrollHeight;
+    return row;
+  }
+
+  const walletBtn = document.getElementById('walletBtn');
+  let connectedAccount = null;
+
+  function shortAddr(addr) {
+    if (!addr) return '';
+    return addr.slice(0, 6) + '…' + addr.slice(-4);
+  }
+
+  function setWalletLabel() {
+    walletBtn.textContent = connectedAccount ? shortAddr(connectedAccount) : '连接 MetaMask';
+  }
+
+  function ethereumProvider() {
+    return window.ethereum;
+  }
+
+  async function connectWallet() {
+    const eth = ethereumProvider();
+    if (!eth) {
+      throw new Error('未检测到 MetaMask。请用 Chrome/Brave 安装扩展后打开本页（http://localhost:8080）。');
+    }
+    const accounts = await eth.request({ method: 'eth_requestAccounts' });
+    connectedAccount = accounts && accounts[0] ? accounts[0] : null;
+    setWalletLabel();
+    return connectedAccount;
+  }
+
+  async function switchChain(chainIdHex) {
+    const eth = ethereumProvider();
+    try {
+      await eth.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: chainIdHex }]
+      });
+    } catch (err) {
+      if (err && err.code === 4902 && chainIdHex === '0x1') {
+        await eth.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0x1',
+            chainName: 'Ethereum Mainnet',
+            nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+            rpcUrls: ['https://ethereum-rpc.publicnode.com'],
+            blockExplorerUrls: ['https://etherscan.io']
+          }]
+        });
+        return;
+      }
+      throw err;
+    }
+  }
+
+  function agentNote(text, error) {
+    const payload = { text, error: !!error };
+    const row = appendRow('agent', payload);
+    history.push({ role: 'agent', ...payload });
+    saveHistory(history);
+    return row;
+  }
+
+  async function executeWallet(actionId) {
+    const account = await connectWallet();
+    const planRes = await fetch(API_ACTION + encodeURIComponent(actionId) + '/wallet-plan');
+    const plan = await planRes.json();
+    if (!planRes.ok) {
+      throw new Error(plan.message || plan.error || ('无法加载计划 HTTP ' + planRes.status));
+    }
+    const txs = plan.transactions || [];
+    if (!txs.length) throw new Error('计划里没有可发送的链上调用');
+
+    const plannedFrom = (plan.fromAddress || '').toLowerCase();
+    if (plannedFrom && plannedFrom !== account.toLowerCase()) {
+      const ok = window.confirm(
+        '计划里的 from 地址是 ' + plan.fromAddress + '，当前钱包是 ' + account +
+        '。\n地址不一致时交易可能失败或打到错误账户。仍要用当前钱包发送吗？'
+      );
+      if (!ok) return;
+    }
+
+    const hashes = [];
+    const eth = ethereumProvider();
+    for (const tx of txs) {
+      await switchChain(tx.chainIdHex);
+      const hash = await eth.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: account,
+          to: tx.to,
+          data: tx.data,
+          value: tx.valueHex || '0x0'
+        }]
+      });
+      hashes.push(hash);
+    }
+
+    const reportId = plan.actionId || actionId;
+    await fetch(API_ACTION + encodeURIComponent(reportId) + '/wallet-submitted', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromAddress: account, txHashes: hashes })
+    });
+
+    agentNote('钱包已广播 ' + hashes.length + ' 笔交易。最后一笔 txHash=`' + hashes[hashes.length - 1] + '`。后端没有私钥，只记录了你签过的哈希。');
+  }
+
+  async function executeWalletForLatest() {
+    try {
+      const res = await fetch('/api/actions?sessionId=' + encodeURIComponent(sessionId));
+      const body = await res.json();
+      if (!res.ok || !Array.isArray(body)) {
+        const msg = (body && (body.message || body.error)) ? (body.message || body.error) : ('无法列出计划 HTTP ' + res.status);
+        throw new Error(msg);
+      }
+      const pending = body.find(a => a.status === 'PLANNED' && a.defiActionId)
+        || body.find(a => a.status === 'PLANNED');
+      if (!pending) {
+        agentNote('当前会话没有 PLANNED 状态的计划。请先让 Agent 生成存款计划（需要你的钱包地址），再点用钱包执行。', true);
+        return;
+      }
+      await executeWallet(pending.actionId);
+    } catch (e) {
+      const msg = (e && e.code === 4001) ? '你在 MetaMask 里取消了签名。' : (e.message || String(e));
+      agentNote(msg, true);
+    }
+  }
+
+  function wireActionCard(row) {
+    const card = row.querySelector('.action-card');
+    if (!card) return;
+    const actionId = card.getAttribute('data-action-id');
+    const copyBtn = card.querySelector('.copy-btn');
+    const detailBtn = card.querySelector('.detail-btn');
+    const detailBox = card.querySelector('.detail-json');
+    const walletExecBtn = card.querySelector('.wallet-exec-btn');
+
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(actionId).then(() => {
+        copyBtn.textContent = '已复制 ✓';
+        setTimeout(() => copyBtn.textContent = '复制 ID', 1400);
+      });
+    });
+
+    detailBtn.addEventListener('click', async () => {
+      const showing = detailBox.style.display === 'block';
+      if (showing) { detailBox.style.display = 'none'; detailBtn.textContent = '查看详情'; return; }
+      detailBtn.textContent = '加载中…';
+      try {
+        const res = await fetch(API_ACTION + encodeURIComponent(actionId));
+        const data = await res.json();
+        detailBox.textContent = JSON.stringify(data, null, 2);
+        detailBox.style.display = 'block';
+        detailBtn.textContent = '收起详情';
+      } catch (e) {
+        detailBox.textContent = '加载失败：' + e.message;
+        detailBox.style.display = 'block';
+        detailBtn.textContent = '收起详情';
+      }
+    });
+
+    if (walletExecBtn) {
+      walletExecBtn.addEventListener('click', async () => {
+        walletExecBtn.disabled = true;
+        try {
+          await executeWallet(actionId);
+        } catch (e) {
+          const msg = (e && e.code === 4001) ? '你在 MetaMask 里取消了签名。' : (e.message || String(e));
+          agentNote(msg, true);
+        } finally {
+          walletExecBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  function renderFromHistory() {
+    chatEl.innerHTML = '';
+    if (history.length === 0) {
+      appendRow('agent', { text: '你好，我是 DeFi AI Agent 👋\n\n先点右上角连接 MetaMask，再用自然语言生成计划。真上链请点「用钱包执行」——弹窗里的交易是计划里已经算好的 calldata，由你在钱包里做最后确认。聊天里回复「确认」仍是 paper 模拟，不会弹出钱包。' });
+      return;
+    }
+    history.forEach(item => {
+      const row = appendRow(item.role, item);
+      if (item.role === 'agent') wireActionCard(row);
+    });
+  }
+
+  function updateAgentBubble(row, text, extraHtml) {
+    const bubble = row.querySelector('.bubble');
+    bubble.innerHTML = renderMarkdown(text || '') + (extraHtml || '');
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  async function consumeSse(res, onEvent) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split('\n\n');
+      buf = blocks.pop();
+      for (const block of blocks) {
+        let event = 'message';
+        const dataLines = [];
+        for (const line of block.split('\n')) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+        }
+        if (!dataLines.length) continue;
+        let payload = dataLines.join('\n');
+        try { payload = JSON.parse(payload); } catch (e) { /* keep raw */ }
+        onEvent(event, payload);
+      }
+    }
+  }
+
+  async function sendMessage(text) {
+    if (!text || !text.trim()) return;
+    inputEl.value = '';
+    sendBtn.disabled = true;
+
+    appendRow('user', { text });
+    history.push({ role: 'user', text });
+    saveHistory(history);
+
+    const typingRow = appendRow('agent', { typing: true });
+    const bubble = typingRow.querySelector('.bubble');
+
+    try {
+      const res = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+        body: JSON.stringify({ sessionId, message: text })
+      });
+
+      if (!res.ok || !res.body) {
+        typingRow.remove();
+        await sendMessageFallback(text, null);
+        return;
+      }
+
+      let full = '';
+      let doneMeta = {};
+      let sawDelta = false;
+      bubble.classList.add('streaming');
+
+      await consumeSse(res, (event, payload) => {
+        if (event === 'delta') {
+          sawDelta = true;
+          full += (typeof payload === 'string' ? payload : String(payload ?? ''));
+          bubble.classList.add('streaming');
+          updateAgentBubble(typingRow, full, '');
+        } else if (event === 'done') {
+          doneMeta = payload || {};
+        } else if (event === 'error') {
+          const msg = (payload && payload.message) ? payload.message : 'stream error';
+          throw new Error(msg);
+        }
+      });
+
+      bubble.classList.remove('streaming');
+      if (!sawDelta && !full) {
+        typingRow.remove();
+        await sendMessageFallback(text, null);
+        return;
+      }
+
+      const payload = {
+        text: full || '(空响应)',
+        actionId: doneMeta.actionId,
+        status: doneMeta.status
+      };
+      updateAgentBubble(typingRow, payload.text, actionCardHtml(payload.actionId, payload.status));
+      wireActionCard(typingRow);
+      history.push({ role: 'agent', ...payload });
+      saveHistory(history);
+    } catch (e) {
+      typingRow.remove();
+      appendRow('agent', { text: '请求失败：' + (e.message || e), error: true });
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  async function sendMessageFallback(text, unused) {
+    const typingRow = appendRow('agent', { typing: true });
+    try {
+      const res = await fetch(API_CHAT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text })
+      });
+      let payload;
+      if (!res.ok) {
+        let msg = `请求失败（HTTP ${res.status}）`;
+        try {
+          const err = await res.json();
+          msg = err.message || err.error || msg;
+        } catch (e) {}
+        payload = { text: msg, error: true };
+      } else {
+        const data = await res.json();
+        payload = { text: data.reply || '(空响应)', actionId: data.actionId, status: data.status };
+      }
+      typingRow.remove();
+      const row = appendRow('agent', payload);
+      wireActionCard(row);
+      history.push({ role: 'agent', ...payload });
+      saveHistory(history);
+    } catch (e) {
+      typingRow.remove();
+      appendRow('agent', { text: '网络错误：无法连接到 defi-agent-service（' + e.message + '）', error: true });
+    }
+  }
+
+  sendBtn.addEventListener('click', () => sendMessage(inputEl.value));
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendMessage(inputEl.value);
+  });
+  chipsEl.addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    if (chip.getAttribute('data-wallet')) {
+      executeWalletForLatest();
+      return;
+    }
+    sendMessage(chip.getAttribute('data-msg'));
+  });
+  walletBtn.addEventListener('click', () => {
+    connectWallet().catch(e => agentNote(e.message || String(e), true));
+  });
+  if (window.ethereum && window.ethereum.on) {
+    window.ethereum.on('accountsChanged', (accounts) => {
+      connectedAccount = accounts && accounts[0] ? accounts[0] : null;
+      setWalletLabel();
+    });
+  }
+  resetBtn.addEventListener('click', () => {
+    if (!confirm('开始新会话会清空当前对话历史（服务端 ChatMemory 也会用新的 sessionId），确定吗？')) return;
+    sessionId = uuid();
+    localStorage.setItem(SESSION_KEY, sessionId);
+    history = [];
+    saveHistory(history);
+    renderFromHistory();
+  });
+
+  renderFromHistory();
+})();
+</script>
+</body>
+</html>
